@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magical Hearts & Fairy Dust</title>
+    <meta name="description"
+        content="A magical, interactive 3D heart experience filled with love notes and fairy dust.">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Outfit:wght@300;400;600&display=swap');
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #02020a;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* ── Hint Text ── */
+        #hint {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            pointer-events: none;
+            font-size: 15px;
+            letter-spacing: 6px;
+            text-shadow: 0 0 20px #ff66cc, 0 0 40px #ff66cc;
+            text-transform: uppercase;
+            font-weight: 300;
+            animation: pulseText 3s ease-in-out infinite;
+        }
+
+        @keyframes pulseText {
+
+            0%,
+            100% {
+                opacity: 0.35;
+                transform: scale(0.98);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.02);
+            }
+        }
+
+        /* ── Floating Title ── */
+        #title-overlay {
+            position: absolute;
+            top: 36px;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            animation: titleFadeIn 2s ease forwards;
+        }
+
+        @keyframes titleFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #title-overlay h1 {
+            margin: 0;
+            font-family: 'Dancing Script', cursive;
+            font-size: clamp(1.8rem, 5vw, 3.2rem);
+            background: linear-gradient(135deg, #ff99cc 0%, #ffccff 40%, #ffd700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            filter: drop-shadow(0 0 16px #ff55aa88);
+            letter-spacing: 2px;
+        }
+
+        #title-overlay p {
+            margin: 4px 0 0;
+            font-size: 12px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            color: rgba(255, 220, 255, 0.55);
+            font-weight: 300;
+        }
+
+        /* ── Zoom Controls ── */
+        #zoom-controls {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .zoom-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255, 150, 220, 0.45);
+            background: rgba(20, 5, 30, 0.55);
+            backdrop-filter: blur(12px);
+            color: #ffccff;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.25s, border-color 0.25s, transform 0.15s, box-shadow 0.25s;
+            box-shadow: 0 0 14px rgba(255, 80, 180, 0.15);
+            user-select: none;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255, 80, 180, 0.28);
+            border-color: rgba(255, 150, 220, 0.9);
+            box-shadow: 0 0 24px rgba(255, 80, 180, 0.55);
+            transform: scale(1.12);
+        }
+
+        .zoom-btn:active {
+            transform: scale(0.95);
+        }
+
+        #zoom-level-track {
+            position: relative;
+            width: 4px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        #zoom-level-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, #ff55aa, #ffccff);
+            border-radius: 4px;
+            transition: height 0.3s ease;
+        }
+
+        #reset-btn {
+            font-size: 11px;
+            width: 46px;
+            height: 30px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+        }
+
+        /* ── Zoom Label Tooltip ── */
+        #zoom-label {
+            position: absolute;
+            right: 80px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(20, 5, 30, 0.65);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 150, 220, 0.3);
+            color: #ffccff;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            letter-spacing: 1px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        #zoom-label.visible {
+            opacity: 1;
+        }
+
+        /* ── Crosshair cursor ── */
+        body {
+            cursor: crosshair;
+        }
+
+        /* ── Corner sparkle decoration ── */
+        .corner-deco {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            pointer-events: none;
+            opacity: 0.35;
+        }
+
+        .corner-deco.tl {
+            top: 0;
+            left: 0;
+            transform: rotate(0deg);
+        }
+
+        .corner-deco.tr {
+            top: 0;
+            right: 0;
+            transform: rotate(90deg);
+        }
+
+        .corner-deco.bl {
+            bottom: 0;
+            left: 0;
+            transform: rotate(270deg);
+        }
+
+        .corner-deco.br {
+            bottom: 0;
+            right: 0;
+            transform: rotate(180deg);
+        }
+
+        /* ── Scroll-to-zoom instructions toast ── */
+        #scroll-toast {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            background: rgba(20, 5, 30, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 150, 220, 0.4);
+            border-radius: 20px;
+            padding: 16px 32px;
+            color: #ffccff;
+            font-size: 14px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s, transform 0.4s;
+        }
+
+        #scroll-toast.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Title Overlay -->
+    <div id="title-overlay">
+        <h1>✦ HAPPY WOMENS DAY LOVE ✦</h1>
+        <p>I LOVE YOU ALWAYS AND FOREVER MY URVASHI</p>
+    </div>
+
+    <!-- Hint -->
+    <div id="hint">Click the Hearts to see a Secret Message</div>
+
+    <!-- Zoom Controls -->
+    <div id="zoom-controls">
+        <button class="zoom-btn" id="zoom-in-btn" title="Zoom In" aria-label="Zoom In">＋</button>
+        <div id="zoom-level-track">
+            <div id="zoom-level-fill"></div>
+        </div>
+        <button class="zoom-btn" id="zoom-out-btn" title="Zoom Out" aria-label="Zoom Out">－</button>
+        <button class="zoom-btn" id="reset-btn" title="Reset" aria-label="Reset view">↺</button>
+    </div>
+
+    <!-- Zoom label tooltip -->
+    <div id="zoom-label">100%</div>
+
+    <!-- Corner SVG decorations -->
+    <svg class="corner-deco tl" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 80 Q0 0 80 0" stroke="url(#g1)" stroke-width="1.5" fill="none" />
+        <circle cx="10" cy="10" r="2" fill="#ff99cc" />
+        <circle cx="20" cy="5" r="1" fill="#ffccff" />
+        <defs>
+            <linearGradient id="g1" x1="0" y1="80" x2="80" y2="0">
+                <stop stop-color="#ff55aa" />
+                <stop offset="1" stop-color="#ffccff" stop-opacity="0" />
+            </linearGradient>
+        </defs>
+    </svg>
+    <svg class="corner-deco tr" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 80 Q0 0 80 0" stroke="url(#g2)" stroke-width="1.5" fill="none" />
+        <circle cx="10" cy="10" r="2" fill="#ff99cc" />
+        <defs>
+            <linearGradient id="g2" x1="0" y1="80" x2="80" y2="0">
+                <stop stop-color="#ff55aa" />
+                <stop offset="1" stop-color="#ffccff" stop-opacity="0" />
+            </linearGradient>
+        </defs>
+    </svg>
+    <svg class="corner-deco bl" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 80 Q0 0 80 0" stroke="url(#g3)" stroke-width="1.5" fill="none" />
+        <circle cx="10" cy="10" r="2" fill="#ffd700" />
+        <defs>
+            <linearGradient id="g3" x1="0" y1="80" x2="80" y2="0">
+                <stop stop-color="#ffd700" />
+                <stop offset="1" stop-color="#ffccff" stop-opacity="0" />
+            </linearGradient>
+        </defs>
+    </svg>
+    <svg class="corner-deco br" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 80 Q0 0 80 0" stroke="url(#g4)" stroke-width="1.5" fill="none" />
+        <circle cx="10" cy="10" r="2" fill="#ff99cc" />
+        <defs>
+            <linearGradient id="g4" x1="0" y1="80" x2="80" y2="0">
+                <stop stop-color="#ff55aa" />
+                <stop offset="1" stop-color="#ffccff" stop-opacity="0" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+}
+</script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        // ── Love Notes ──────────────────────────────────────────────────────────
+        const loveNotes = [
+            "I like you.", "Stay.", "You matter.", "Text me.",
+            "Always you.", "Soft heart.", "Mine?", "Call me?",
+            "You glow.", "Don't overthink.", "Forever maybe.",
+            "Still choosing you.", "You feel safe.", "My person.",
+            "Soulmate vibes.", "Thinking of you.", "You're magical.",
+            "My happy place.", "You're my favorite.", "Always & Forever.",
+            "Just us.", "Love you more.", "Pieces of my heart.",
+            "You're the one.", "Heartbeat.", "Sweetest soul.",
+            "Infinite love.", "My dream come true.", "You are art.",
+            "I'm yours.", "Hold me.", "Together is better.",
+            "You make me smile.", "Pure magic.", "Heavenly.",
+            "Everything.", "My universe.", "Breathless.",
+            "You're enough.", "Keep shining.", "Moonlight soul.",
+            "Wildly in love.", "Adore you.", "Beloved."
+        ];
+
+        // ── Scene Setup ────────────────────────────────────────────────────────
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#02020a');
+        scene.fog = new THREE.FogExp2(0x02020a, 0.018);
+
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 35);
+
+        const DEFAULT_Z = 35;
+        const MIN_Z = 8;
+        const MAX_Z = 80;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        // ── OrbitControls ──────────────────────────────────────────────────────
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.08;     // very slow rotation
+        controls.enableZoom = true;          // native scroll zoom enabled
+        controls.zoomSpeed = 1.2;
+        controls.minDistance = MIN_Z;
+        controls.maxDistance = MAX_Z;
+        controls.enablePan = false;
+
+        // ── Zoom UI helpers ────────────────────────────────────────────────────
+        const zoomFill = document.getElementById('zoom-level-fill');
+        const zoomLabel = document.getElementById('zoom-label');
+        let labelTimer = null;
+
+        function getZoomPct() {
+            const raw = (camera.position.length() - MIN_Z) / (MAX_Z - MIN_Z);
+            return Math.max(0, Math.min(1, 1 - raw));   // invert: close = high %
+        }
+
+        function updateZoomUI() {
+            const pct = getZoomPct();
+            zoomFill.style.height = (pct * 100) + '%';
+            const labelPct = Math.round(pct * 100);
+            zoomLabel.textContent = labelPct + '%';
+
+            zoomLabel.classList.add('visible');
+            clearTimeout(labelTimer);
+            labelTimer = setTimeout(() => zoomLabel.classList.remove('visible'), 1800);
+        }
+
+        // Smooth programmatic zoom
+        let targetZ = camera.position.z;
+
+        function smoothZoom(delta) {
+            targetZ = THREE.MathUtils.clamp(targetZ + delta, MIN_Z, MAX_Z);
+        }
+
+        // ── Zoom Buttons ───────────────────────────────────────────────────────
+        document.getElementById('zoom-in-btn').addEventListener('click', () => smoothZoom(-6));
+        document.getElementById('zoom-out-btn').addEventListener('click', () => smoothZoom(6));
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            targetZ = DEFAULT_Z;
+            controls.reset();
+        });
+
+        // ── Scroll-to-zoom (also via OrbitControls, but we sync targetZ) ───────
+        renderer.domElement.addEventListener('wheel', (e) => {
+            // OrbitControls handles the actual zoom; we just sync targetZ after
+            targetZ = THREE.MathUtils.clamp(
+                targetZ + e.deltaY * 0.05,
+                MIN_Z, MAX_Z
+            );
+        }, { passive: true });
+
+        // ── Pinch-to-zoom (touch) ──────────────────────────────────────────────
+        let prevTouchDist = null;
+
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                prevTouchDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            }
+        }, { passive: true });
+
+        renderer.domElement.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                if (prevTouchDist !== null) {
+                    const delta = (prevTouchDist - dist) * 0.15;
+                    smoothZoom(delta);
+                }
+                prevTouchDist = dist;
+            }
+        }, { passive: true });
+
+        renderer.domElement.addEventListener('touchend', () => {
+            prevTouchDist = null;
+        });
+
+        // ── Textures ───────────────────────────────────────────────────────────
+        function createHeartTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.translate(64, 64); ctx.scale(1, -1);
+
+            const grad = ctx.createRadialGradient(0, -10, 0, 0, -10, 60);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            grad.addColorStop(0.4, 'rgba(200, 220, 255, 0.9)');
+            grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = grad;
+
+            ctx.beginPath();
+            for (let i = 0; i <= Math.PI * 2; i += 0.05) {
+                const x = 16 * Math.pow(Math.sin(i), 3);
+                const y = 13 * Math.cos(i) - 5 * Math.cos(2 * i) - 2 * Math.cos(3 * i) - Math.cos(4 * i);
+                ctx.lineTo(x * 2.5, y * 2.5);
+            }
+            ctx.fill();
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createSparkleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.translate(32, 32);
+
+            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+            grad.addColorStop(0, 'white');
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = grad;
+
+            ctx.beginPath();
+            ctx.moveTo(0, -20); ctx.lineTo(4, -4); ctx.lineTo(20, 0);
+            ctx.lineTo(4, 4); ctx.lineTo(0, 20); ctx.lineTo(-4, 4);
+            ctx.lineTo(-20, 0); ctx.lineTo(-4, -4);
+            ctx.fill();
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createTextTexture(text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            // ── Measure text first ──
+            ctx.font = "bold 82px 'Dancing Script', cursive";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            const measured = ctx.measureText(text).width;
+            const padX = 60, padY = 28;
+            const boxW = Math.min(measured + padX * 2, 980);
+            const boxH = 150;
+            const boxX = 512 - boxW / 2;
+            const boxY = 128 - boxH / 2;
+            const radius = boxH / 2;
+
+            // ── Dark pill background ──
+            ctx.save();
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.moveTo(boxX + radius, boxY);
+            ctx.lineTo(boxX + boxW - radius, boxY);
+            ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+            ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+            ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+            ctx.lineTo(boxX + radius, boxY + boxH);
+            ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+            ctx.lineTo(boxX, boxY + radius);
+            ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+            ctx.closePath();
+            // Deep, semi-transparent background
+            ctx.fillStyle = 'rgba(8, 2, 20, 0.82)';
+            ctx.fill();
+            // Glowing border
+            ctx.strokeStyle = 'rgba(255, 100, 200, 0.7)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.restore();
+
+            // ── Outer glow ──
+            ctx.save();
+            ctx.shadowColor = '#ff44bb';
+            ctx.shadowBlur = 30;
+
+            // ── Gradient text ──
+            const grad = ctx.createLinearGradient(512 - boxW / 2, 0, 512 + boxW / 2, 0);
+            grad.addColorStop(0, '#ff99dd');   // soft pink
+            grad.addColorStop(0.4, '#ffffff');   // white centre
+            grad.addColorStop(0.7, '#ffdd88');   // warm gold
+            grad.addColorStop(1, '#ff88cc');   // back to pink
+            ctx.fillStyle = grad;
+            ctx.font = "bold 82px 'Dancing Script', cursive";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(text, 512, 132);
+            ctx.restore();
+
+            // ── Thin outline for crispness ──
+            ctx.strokeStyle = 'rgba(255, 60, 160, 0.45)';
+            ctx.lineWidth = 1.5;
+            ctx.strokeText(text, 512, 132);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const heartTexture = createHeartTexture();
+        const sparkleTexture = createSparkleTexture();
+
+        // ── Nebula (heart-shaped cloud) ────────────────────────────────────────
+        const nebulaGeo = new THREE.BufferGeometry();
+        const count = 8000;
+        const pos = new Float32Array(count * 3);
+        const cols = new Float32Array(count * 3);
+        const nebulaColors = [
+            new THREE.Color('#ff0055'), new THREE.Color('#ff77aa'),
+            new THREE.Color('#cdb4db'), new THREE.Color('#bde0fe'),
+            new THREE.Color('#ffd700'), new THREE.Color('#ff99dd'),
+            new THREE.Color('#e040fb')
+        ];
+
+        for (let i = 0; i < count; i++) {
+            const t = Math.random() * Math.PI * 2;
+            let x = 16 * Math.pow(Math.sin(t), 3);
+            let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+
+            pos[i * 3] = x + (Math.random() - 0.5) * 7;
+            pos[i * 3 + 1] = y + (Math.random() - 0.5) * 7;
+            pos[i * 3 + 2] = (Math.random() - 0.5) * 90;
+
+            const c = nebulaColors[Math.floor(Math.random() * nebulaColors.length)];
+            cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
+        }
+
+        nebulaGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        nebulaGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+
+        const nebula = new THREE.Points(nebulaGeo, new THREE.PointsMaterial({
+            size: 0.75,
+            map: heartTexture,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.65,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        }));
+        scene.add(nebula);
+
+        // ── Stars ──────────────────────────────────────────────────────────────
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 7000;
+        const starPos = new Float32Array(starCount * 3);
+        const starCols = new Float32Array(starCount * 3);
+        const starPalette = [
+            new THREE.Color('#ffeedd'), new THREE.Color('#ffccff'),
+            new THREE.Color('#ddeeff'), new THREE.Color('#ffffff')
+        ];
+
+        for (let i = 0; i < starCount; i++) {
+            starPos[i * 3] = (Math.random() - 0.5) * 250;
+            starPos[i * 3 + 1] = (Math.random() - 0.5) * 250;
+            starPos[i * 3 + 2] = (Math.random() - 0.5) * 250;
+            const sc = starPalette[Math.floor(Math.random() * starPalette.length)];
+            starCols[i * 3] = sc.r; starCols[i * 3 + 1] = sc.g; starCols[i * 3 + 2] = sc.b;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(starCols, 3));
+
+        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
+            size: 0.22,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending
+        }));
+        scene.add(stars);
+
+        // ── Floating Hearts ────────────────────────────────────────────────────
+        const heartGroup = new THREE.Group();
+        scene.add(heartGroup);
+
+        const heartColors = [0xffccff, 0xff99cc, 0xff55aa, 0xffd700, 0xbde0fe, 0xe040fb, 0xff6680];
+
+        for (let i = 0; i < 55; i++) {
+            const color = heartColors[Math.floor(Math.random() * heartColors.length)];
+            const hMat = new THREE.SpriteMaterial({
+                map: heartTexture,
+                color,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                opacity: 0.85
+            });
+
+            const h = new THREE.Sprite(hMat);
+            h.position.set(
+                (Math.random() - 0.5) * 44,
+                (Math.random() - 0.5) * 44,
+                (Math.random() - 0.5) * 28
+            );
+            h.scale.setScalar(Math.random() * 2 + 1.5);
+            h.userData = {
+                offset: Math.random() * Math.PI * 2,
+                speed: Math.random() * 0.002 + 0.001,
+                rotationSpeed: (Math.random() - 0.5) * 0.02,
+                baseScale: Math.random() * 1.5 + 1.8
+            };
+            heartGroup.add(h);
+        }
+
+        // ── Particle Systems ───────────────────────────────────────────────────
+        const cursorParticles = [];
+        const rings = [];
+        const effects = [];
+
+        function spawnCursorDust(point) {
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: sparkleTexture,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                color: new THREE.Color().setHSL(Math.random() * 0.1 + 0.85, 1, 0.8)
+            }));
+            sprite.position.copy(point);
+            sprite.scale.setScalar(0.45);
+            scene.add(sprite);
+            cursorParticles.push({ mesh: sprite, life: 1.0 });
+        }
+
+        function spawnShockwave(pos) {
+            const mesh = new THREE.Mesh(
+                new THREE.RingGeometry(0.1, 0.25, 48),
+                new THREE.MeshBasicMaterial({
+                    color: 0xffaaee,
+                    transparent: true,
+                    opacity: 0.9,
+                    side: THREE.DoubleSide,
+                    blending: THREE.AdditiveBlending
+                })
+            );
+            mesh.position.copy(pos);
+            mesh.lookAt(camera.position);
+            scene.add(mesh);
+            rings.push({ mesh, scale: 1, opacity: 0.9 });
+        }
+
+        function spawnMagicEffect(pos) {
+            const tex = createTextTexture(loveNotes[Math.floor(Math.random() * loveNotes.length)]);
+            const textSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+            textSprite.position.copy(pos).add(new THREE.Vector3(0, 1.4, 0));
+            textSprite.scale.set(7.5, 1.875, 1);
+            scene.add(textSprite);
+
+            const pPos = [], pVel = [];
+            for (let i = 0; i < 28; i++) {
+                pPos.push(pos.x, pos.y, pos.z);
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const spd = Math.random() * 0.35 + 0.1;
+                pVel.push({
+                    x: spd * Math.sin(phi) * Math.cos(theta),
+                    y: spd * Math.sin(phi) * Math.sin(theta),
+                    z: spd * Math.cos(phi)
+                });
+            }
+
+            const pGeo = new THREE.BufferGeometry();
+            pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
+
+            const pSys = new THREE.Points(pGeo, new THREE.PointsMaterial({
+                size: 0.9,
+                map: sparkleTexture,
+                color: 0xffcc44,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            }));
+
+            scene.add(pSys);
+            effects.push({ text: textSprite, particles: pSys, pVel, age: 0 });
+        }
+
+        // ── Raycaster / Click ──────────────────────────────────────────────────
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth) * 2 - 1;
+            const y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            const cursorRay = new THREE.Raycaster();
+            cursorRay.setFromCamera({ x, y }, camera);
+
+            const dir = new THREE.Vector3(0, 0, 10).unproject(camera).sub(camera.position).normalize();
+            const dist = (10 - camera.position.z) / dir.z;
+            spawnCursorDust(camera.position.clone().add(dir.multiplyScalar(dist)));
+        });
+
+        window.addEventListener('click', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(heartGroup.children);
+
+            if (hits.length > 0) {
+                const hit = hits[0].object;
+                spawnMagicEffect(hit.position);
+                spawnShockwave(hit.position);
+                // Respawn heart at a new position
+                hit.scale.setScalar(0);
+                hit.position.set(
+                    (Math.random() - 0.5) * 34,
+                    (Math.random() - 0.5) * 34,
+                    (Math.random() - 0.5) * 22
+                );
+            }
+        });
+
+        // ── Post Processing ────────────────────────────────────────────────────
+        const composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
+
+        const bloom = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            1.6,   // strength
+            0.55,  // radius
+            0.04   // threshold
+        );
+        composer.addPass(bloom);
+
+        // ── Keyboard Shortcuts ─────────────────────────────────────────────────
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '+' || e.key === '=') smoothZoom(-6);
+            if (e.key === '-' || e.key === '_') smoothZoom(6);
+            if (e.key === '0') { targetZ = DEFAULT_Z; controls.reset(); }
+        });
+
+        // ── Clock / Animation ──────────────────────────────────────────────────
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = clock.getElapsedTime();
+
+            // Smooth zoom lerp (for button / keyboard zoom)
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetZ, 0.07);
+
+            controls.update();
+            updateZoomUI();
+
+            // Nebula slow pulse
+            nebula.rotation.z = t * 0.003;   // much slower
+            nebula.rotation.x = Math.sin(t * 0.02) * 0.015;
+            stars.rotation.y = t * 0.001;
+            stars.rotation.x = t * 0.0005;
+
+            // Floating hearts
+            heartGroup.children.forEach(h => {
+                h.position.y += Math.sin(t * 0.4 + h.userData.offset) * 0.003;  // very subtle sway
+                h.position.x += Math.cos(t * 0.3 + h.userData.offset) * 0.001;
+
+                const pulse = 1 + Math.sin(t * 1.0 + h.userData.offset) * 0.05;  // gentle pulse
+                const bs = h.userData.baseScale;
+                if (h.scale.x < 0.5) {
+                    // recently clicked — grow back
+                    h.scale.setScalar(THREE.MathUtils.lerp(h.scale.x, bs, 0.08));
+                } else {
+                    h.scale.setScalar(bs * pulse);
+                }
+            });
+
+            // Cursor dust
+            for (let i = cursorParticles.length - 1; i >= 0; i--) {
+                const p = cursorParticles[i];
+                p.life -= 0.05;
+                p.mesh.scale.multiplyScalar(0.9);
+                p.mesh.material.opacity = p.life;
+                if (p.life <= 0) { scene.remove(p.mesh); cursorParticles.splice(i, 1); }
+            }
+
+            // Shockwave rings
+            for (let i = rings.length - 1; i >= 0; i--) {
+                const r = rings[i];
+                r.scale += 0.55;
+                r.opacity -= 0.028;
+                r.mesh.scale.setScalar(r.scale);
+                r.mesh.material.opacity = r.opacity;
+                if (r.opacity <= 0) { scene.remove(r.mesh); rings.splice(i, 1); }
+            }
+
+            // Magic effects (text + sparkles)
+            for (let i = effects.length - 1; i >= 0; i--) {
+                const eff = effects[i];
+                eff.age++;
+                eff.text.position.y += 0.016;
+                if (eff.age > 80) eff.text.material.opacity -= 0.028;
+
+                const posAttr = eff.particles.geometry.attributes.position;
+                for (let j = 0; j < eff.pVel.length; j++) {
+                    posAttr.array[j * 3] += eff.pVel[j].x;
+                    posAttr.array[j * 3 + 1] += eff.pVel[j].y;
+                    posAttr.array[j * 3 + 2] += eff.pVel[j].z;
+                    eff.pVel[j].x *= 0.94;
+                    eff.pVel[j].y *= 0.94;
+                    eff.pVel[j].z *= 0.94;
+                }
+                posAttr.needsUpdate = true;
+                eff.particles.material.opacity = 1 - (eff.age / 60);
+
+                if (eff.age > 130) {
+                    scene.remove(eff.text);
+                    scene.remove(eff.particles);
+                    effects.splice(i, 1);
+                }
+            }
+
+            composer.render();
+        }
+
+        // ── Resize ────────────────────────────────────────────────────────────
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+
+</body>
+
+</html>
